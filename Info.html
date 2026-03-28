@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Science Portfolio — Hyperliquid Sentiment Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #080c10;
+    --surface:  #0d1117;
+    --card:     #111820;
+    --border:   #1e2a35;
+    --green:    #00e5a0;
+    --green-dim:#007a55;
+    --blue:     #4d9fff;
+    --amber:    #f0b429;
+    --red:      #ff5c5c;
+    --purple:   #a78bfa;
+    --text:     #dde6f0;
+    --muted:    #6b7f96;
+    --bright:   #f0f8ff;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* ── Custom cursor ── */
+  .cursor {
+    width: 10px; height: 10px;
+    background: var(--green);
+    border-radius: 50%;
+    position: fixed; top: 0; left: 0;
+    pointer-events: none;
+    z-index: 9999;
+    transition: transform 0.15s ease;
+    mix-blend-mode: screen;
+  }
+  .cursor-ring {
+    width: 36px; height: 36px;
+    border: 1px solid rgba(0,229,160,0.4);
+    border-radius: 50%;
+    position: fixed; top: 0; left: 0;
+    pointer-events: none;
+    z-index: 9998;
+    transition: transform 0.4s ease, width 0.3s, height 0.3s, border-color 0.3s;
+  }
+  body:has(a:hover) .cursor-ring,
+  body:has(button:hover) .cursor-ring {
+    width: 56px; height: 56px;
+    border-color: var(--green);
+    margin: -10px 0 0 -10px;
+  }
+
+  /* ── Noise overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.6;
+  }
+
+  /* ── Grid lines ── */
+  .grid-lines {
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ── */
+  .container { max-width: 900px; margin: 0 auto; padding: 0 32px; position: relative; z-index: 1; }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 120px 0 80px;
+    position: relative;
+  }
+
+  .hero-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--green);
+    border: 1px solid var(--green-dim);
+    padding: 6px 14px; border-radius: 2px;
+    margin-bottom: 40px;
+    width: fit-content;
+    animation: fadeUp 0.8s ease both;
+  }
+  .hero-tag::before {
+    content: '';
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s ease infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .hero-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(48px, 8vw, 88px);
+    line-height: 1.0;
+    color: var(--bright);
+    letter-spacing: -0.03em;
+    animation: fadeUp 0.8s 0.1s ease both;
+  }
+  .hero-name em {
+    font-style: normal;
+    color: transparent;
+    -webkit-text-stroke: 1.5px var(--green);
+  }
+
+  .hero-role {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: clamp(18px, 3vw, 26px);
+    color: var(--muted);
+    margin-top: 16px;
+    animation: fadeUp 0.8s 0.2s ease both;
+  }
+
+  .hero-desc {
+    max-width: 540px;
+    margin-top: 28px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.8;
+    animation: fadeUp 0.8s 0.3s ease both;
+  }
+
+  .hero-cta {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    margin-top: 44px;
+    animation: fadeUp 0.8s 0.4s ease both;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 13px 28px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 2px;
+    cursor: none;
+    transition: all 0.25s ease;
+    position: relative; overflow: hidden;
+  }
+  .btn::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.07);
+    transform: translateX(-101%);
+    transition: transform 0.3s ease;
+  }
+  .btn:hover::after { transform: translateX(0); }
+
+  .btn-primary {
+    background: var(--green);
+    color: #000;
+    font-weight: 600;
+  }
+  .btn-primary:hover { background: #00ffb3; }
+
+  .btn-ghost {
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-ghost:hover { border-color: var(--green); color: var(--green); }
+
+  .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin: 80px 0 0;
+    animation: fadeUp 0.8s 0.5s ease both;
+  }
+  .stat-cell {
+    background: var(--surface);
+    padding: 28px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-cell::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--green), transparent);
+    transform: scaleX(0); transform-origin: left;
+    transition: transform 0.4s ease;
+  }
+  .stat-cell:hover::before { transform: scaleX(1); }
+
+  .stat-val {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    color: var(--green);
+    letter-spacing: -0.02em;
+    display: block;
+  }
+  .stat-lbl {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 4px;
+    display: block;
+  }
+
+  /* ── Sections ── */
+  section { padding: 100px 0; }
+
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-label::before {
+    content: '';
+    display: inline-block;
+    width: 24px; height: 1px;
+    background: var(--green);
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: clamp(28px, 4vw, 42px);
+    color: var(--bright);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 48px;
+  }
+
+  /* ── About ── */
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: var(--border);
+  }
+  .about-cell {
+    background: var(--card);
+    padding: 32px;
+  }
+  .about-cell h4 {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--bright);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .about-cell p { color: var(--muted); font-size: 13px; line-height: 1.8; }
+
+  .skill-chips {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-top: 16px;
+  }
+  .chip {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    transition: all 0.2s;
+  }
+  .chip:hover { border-color: var(--green); color: var(--green); }
+  .chip.green  { border-color: var(--green-dim); color: var(--green); }
+  .chip.blue   { border-color: #1e3a5f; color: var(--blue); }
+  .chip.amber  { border-color: #4a3500; color: var(--amber); }
+
+  /* ── Case Study ── */
+  .case-header {
+    border: 1px solid var(--border);
+    padding: 40px;
+    background: var(--card);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 2px;
+  }
+  .case-header::after {
+    content: 'CASE STUDY';
+    position: absolute; right: -30px; top: 20px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 72px;
+    color: rgba(0,229,160,0.04);
+    white-space: nowrap;
+    pointer-events: none;
+    letter-spacing: -0.04em;
+  }
+
+  .case-meta {
+    display: flex; gap: 24px; flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .meta-tag {
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--green); padding: 4px 10px;
+    border: 1px solid var(--green-dim);
+    border-radius: 1px;
+  }
+  .meta-tag.blue  { color: var(--blue);  border-color: #1e3a5f; }
+  .meta-tag.amber { color: var(--amber); border-color: #4a3500; }
+
+  .case-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 32px;
+    color: var(--bright);
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 12px;
+  }
+  .case-subtitle {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--muted);
+  }
+
+  /* ── Phase cards ── */
+  .phases { display: flex; flex-direction: column; gap: 2px; }
+
+  .phase {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    padding: 0;
+    transition: border-left-color 0.3s;
+    overflow: hidden;
+  }
+  .phase:hover { border-left-color: var(--green); }
+
+  .phase-header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 24px 32px;
+    cursor: pointer;
+  }
+  .phase-num {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 11px;
+    color: var(--green);
+    letter-spacing: 0.15em;
+    min-width: 32px;
+  }
+  .phase-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 16px;
+    color: var(--bright);
+    flex: 1;
+  }
+  .phase-badge {
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 4px 10px;
+    background: rgba(0,229,160,0.08);
+    color: var(--green);
+    border-radius: 1px;
+  }
+  .phase-chevron {
+    color: var(--muted);
+    transition: transform 0.3s;
+    font-size: 16px;
+  }
+  .phase.open .phase-chevron { transform: rotate(180deg); }
+
+  .phase-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+  .phase.open .phase-body { max-height: 1200px; }
+
+  .phase-content {
+    padding: 0 32px 32px 80px;
+    border-top: 1px solid var(--border);
+  }
+  .phase-content p {
+    color: var(--muted); font-size: 13px; line-height: 1.8;
+    margin-top: 20px; margin-bottom: 16px;
+  }
+
+  .findings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: var(--border);
+    margin-top: 16px;
+  }
+  .finding {
+    background: var(--surface);
+    padding: 20px;
+    position: relative;
+  }
+  .finding-icon {
+    font-size: 20px; margin-bottom: 8px; display: block;
+  }
+  .finding-val {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 22px;
+    color: var(--green);
+    letter-spacing: -0.02em;
+    display: block;
+  }
+  .finding-desc {
+    font-size: 12px; color: var(--muted); line-height: 1.6;
+    margin-top: 4px;
+  }
+
+  .code-block {
+    background: #060a0e;
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--green);
+    padding: 20px 24px;
+    margin: 16px 0;
+    font-size: 12px;
+    color: #7dd3b0;
+    overflow-x: auto;
+    white-space: pre;
+    line-height: 1.7;
+  }
+  .code-block .kw  { color: var(--blue); }
+  .code-block .str { color: var(--amber); }
+  .code-block .cm  { color: #3d5568; }
+  .code-block .fn  { color: var(--purple); }
+
+  .insight-list { list-style: none; margin-top: 16px; }
+  .insight-list li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px; color: var(--muted);
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .insight-list li::before {
+    content: '→';
+    color: var(--green);
+    font-size: 12px;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+  .insight-list li strong { color: var(--text); }
+
+  /* ── Deliverables ── */
+  .deliverables {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 2px; background: var(--border);
+    margin-top: 2px;
+  }
+  .deliverable {
+    background: var(--card); padding: 28px 24px;
+    position: relative;
+  }
+  .del-icon { font-size: 24px; margin-bottom: 12px; display: block; }
+  .del-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 14px;
+    color: var(--bright); margin-bottom: 8px;
+  }
+  .del-desc { font-size: 12px; color: var(--muted); line-height: 1.7; }
+
+  /* ── PDF CTA ── */
+  .pdf-cta {
+    border: 1px solid var(--border);
+    background: var(--card);
+    padding: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+    margin-top: 2px;
+    flex-wrap: wrap;
+    position: relative;
+    overflow: hidden;
+  }
+  .pdf-cta::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 80% 50%, rgba(0,229,160,0.04), transparent 60%);
+    pointer-events: none;
+  }
+  .pdf-cta-text h3 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 24px;
+    color: var(--bright); margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .pdf-cta-text p { color: var(--muted); font-size: 13px; }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 40px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .footer-left {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 18px;
+    color: var(--bright);
+  }
+  .footer-left span { color: var(--green); }
+  .footer-right { color: var(--muted); font-size: 12px; }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .reveal {
+    opacity: 0; transform: translateY(32px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .reveal.visible {
+    opacity: 1; transform: translateY(0);
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--green-dim); }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .stats-bar { grid-template-columns: 1fr 1fr; }
+    .about-grid { grid-template-columns: 1fr; }
+    .findings-grid { grid-template-columns: 1fr; }
+    .deliverables { grid-template-columns: 1fr; }
+    .pdf-cta { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="grid-lines"></div>
+
+<!-- ── HERO ─────────────────────────────────────────────────────────── -->
+<div class="container">
+  <section class="hero">
+    <div class="hero-tag">Available for opportunities</div>
+
+    <h1 class="hero-name">Data <em>Science</em><br>& Analytics</h1>
+    <p class="hero-role">Web3 Trading · Sentiment Analysis · Financial Data</p>
+    <p class="hero-desc">
+      I build data pipelines, uncover hidden market patterns, and translate
+      complex datasets into actionable trading intelligence. Specialising in
+      crypto markets, on-chain data, and behavioural finance.
+    </p>
+
+    <div class="hero-cta">
+      <a href="#case-study" class="btn btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17l3 3 3-3M12 12v8M5 12H3l9-9 9 9h-2"/></svg>
+        View Case Study
+      </a>
+      <a href="sentiment_analysis_report_v2.pdf" target="_blank" class="btn btn-ghost">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+        Full PDF Report
+      </a>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-cell">
+        <span class="stat-val">211K+</span>
+        <span class="stat-lbl">Trades Analysed</span>
+      </div>
+      <div class="stat-cell">
+        <span class="stat-val">$10.3M</span>
+        <span class="stat-lbl">PnL Mapped</span>
+      </div>
+      <div class="stat-cell">
+        <span class="stat-val">2,644</span>
+        <span class="stat-lbl">Sentiment Days</span>
+      </div>
+      <div class="stat-cell">
+        <span class="stat-val">246</span>
+        <span class="stat-lbl">Coins Covered</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ABOUT ──────────────────────────────────────────────────────── -->
+  <section id="about" class="reveal">
+    <div class="section-label">About</div>
+    <h2 class="section-title">What I do</h2>
+
+    <div class="about-grid">
+      <div class="about-cell">
+        <h4>Core Expertise</h4>
+        <p>I specialise in financial data analysis with a focus on crypto markets. From raw on-chain data to boardroom-ready insights — I handle the full stack: ingestion, cleaning, modelling, visualisation, and storytelling.</p>
+        <div class="skill-chips" style="margin-top:20px;">
+          <span class="chip green">Python</span>
+          <span class="chip green">Pandas</span>
+          <span class="chip green">NumPy</span>
+          <span class="chip blue">SQL</span>
+          <span class="chip blue">Matplotlib</span>
+          <span class="chip blue">Seaborn</span>
+          <span class="chip amber">SciPy</span>
+          <span class="chip amber">ReportLab</span>
+        </div>
+      </div>
+      <div class="about-cell">
+        <h4>Domain Focus</h4>
+        <p>Deep knowledge of crypto trading mechanics — perpetuals, funding rates, liquidations, sentiment cycles. I translate behavioural market signals into quantifiable edges and strategy inputs.</p>
+        <div class="skill-chips" style="margin-top:20px;">
+          <span class="chip green">Market Sentiment</span>
+          <span class="chip green">PnL Analysis</span>
+          <span class="chip blue">Trader Segmentation</span>
+          <span class="chip blue">Web3 Data</span>
+          <span class="chip amber">Strategy Design</span>
+          <span class="chip amber">Report Writing</span>
+        </div>
+      </div>
+      <div class="about-cell">
+        <h4>Approach</h4>
+        <p>I don't just run numbers — I ask "so what?" at every step. Every chart, table, and insight in my work is tied to a decision a trader or PM can act on. Data without direction is noise.</p>
+      </div>
+      <div class="about-cell">
+        <h4>Deliverable Quality</h4>
+        <p>Production-grade outputs: dark-themed multi-panel dashboards, structured PDF reports with narrative, and clean code that can be re-run as new data arrives. Built to impress and built to last.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CASE STUDY ─────────────────────────────────────────────────── -->
+  <section id="case-study" class="reveal">
+    <div class="section-label">Case Study</div>
+    <h2 class="section-title">Hiring Assignment<br>Breakdown</h2>
+
+    <div class="case-header">
+      <div class="case-meta">
+        <span class="meta-tag">Hyperliquid</span>
+        <span class="meta-tag blue">Fear & Greed Index</span>
+        <span class="meta-tag amber">Full-Year 2024</span>
+      </div>
+      <div class="case-title">Trader Performance × Market Sentiment Analysis</div>
+      <div class="case-subtitle">Uncovering how Bitcoin fear and greed shapes trading outcomes on Hyperliquid's perpetuals exchange</div>
+    </div>
+
+    <div class="phases">
+
+      <!-- Phase 1 -->
+      <div class="phase open" onclick="togglePhase(this)">
+        <div class="phase-header">
+          <span class="phase-num">01</span>
+          <span class="phase-name">Data Ingestion & Merging</span>
+          <span class="phase-badge">Foundation</span>
+          <span class="phase-chevron">▾</span>
+        </div>
+        <div class="phase-body">
+          <div class="phase-content">
+            <p>Started with two raw datasets: 211,224 Hyperliquid trade rows (compressed .gz) and 2,644 days of Bitcoin Fear & Greed Index readings. Parsed custom IST timestamp format, normalised both datasets to date-grain, and performed a left join achieving <strong style="color:var(--green)">99.997% coverage</strong>.</p>
+            <div class="code-block"><span class="cm"># Parse non-standard IST timestamp & merge</span>
+<span class="kw">td</span>[<span class="str">"date"</span>] = pd.<span class="fn">to_datetime</span>(td[<span class="str">"Timestamp IST"</span>],
+                  format=<span class="str">"%d-%m-%Y %H:%M"</span>).dt.normalize()
+<span class="kw">df</span> = td.<span class="fn">merge</span>(fg[[<span class="str">"date"</span>,<span class="str">"value"</span>,<span class="str">"classification"</span>]],
+              on=<span class="str">"date"</span>, how=<span class="str">"left"</span>)
+<span class="cm"># Coverage: 99.997% — only 6 rows unmatched</span></div>
+            <ul class="insight-list">
+              <li><strong>211,224</strong> trade rows from 32 unique traders across 246 coins</li>
+              <li><strong>104,408</strong> non-zero Closed PnL rows used for performance metrics</li>
+              <li>Sentiment spans Feb 2018 – May 2025; trade data is full-year 2024</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 2 -->
+      <div class="phase" onclick="togglePhase(this)">
+        <div class="phase-header">
+          <span class="phase-num">02</span>
+          <span class="phase-name">Exploratory Data Analysis</span>
+          <span class="phase-badge">Discovery</span>
+          <span class="phase-chevron">▾</span>
+        </div>
+        <div class="phase-body">
+          <div class="phase-content">
+            <p>Computed per-sentiment aggregations across PnL, win rate, trade volume, buy/sell ratios, and fee drag. Derived trader-level statistics and ranked by total PnL to create performance tiers.</p>
+            <div class="findings-grid">
+              <div class="finding">
+                <span class="finding-icon">📈</span>
+                <span class="finding-val">$130</span>
+                <div class="finding-desc">Avg PnL per trade during Extreme Greed — highest of all 5 regimes</div>
+              </div>
+              <div class="finding">
+                <span class="finding-icon">🎯</span>
+                <span class="finding-val">87.3%</span>
+                <div class="finding-desc">Win rate during Fear — counterintuitively the highest regime</div>
+              </div>
+              <div class="finding">
+                <span class="finding-icon">💰</span>
+                <span class="finding-val">$7,816</span>
+                <div class="finding-desc">Avg trade size USD during Fear — traders deploy most capital in panic</div>
+              </div>
+              <div class="finding">
+                <span class="finding-icon">🤖</span>
+                <span class="finding-val">99.1%</span>
+                <div class="finding-desc">Win rate of top trader across 9,997 trades — likely algorithmic MM</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 3 -->
+      <div class="phase" onclick="togglePhase(this)">
+        <div class="phase-header">
+          <span class="phase-num">03</span>
+          <span class="phase-name">Visualisation — 4 Figure Sets</span>
+          <span class="phase-badge">Communication</span>
+          <span class="phase-chevron">▾</span>
+        </div>
+        <div class="phase-body">
+          <div class="phase-content">
+            <p>Built four multi-panel dark-themed figures in Matplotlib covering every angle of the analysis. Each figure was purpose-designed to tell a specific story, not just display data.</p>
+            <ul class="insight-list">
+              <li><strong>Figure 1 — Executive Dashboard:</strong> 6-panel overview — avg PnL, win rate, trade volume, PnL violin distributions, buy/sell stacked bars, cumulative PnL by sentiment</li>
+              <li><strong>Figure 2 — Time Series:</strong> F&G index overlaid with daily PnL (14-day MA), win rate vs volume over 2024, and correlation scatter with linear regression</li>
+              <li><strong>Figure 3 — Segmentation:</strong> Trader tier analysis, trade count vs PnL scatter, top-10 coin × sentiment win-rate heatmap, coin PnL ranking</li>
+              <li><strong>Figure 4 — Advanced Patterns:</strong> Contrarian signal strength, monthly × sentiment PnL heatmap, top-3 trader profiles, long/short breakdown, fee drag</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 4 -->
+      <div class="phase" onclick="togglePhase(this)">
+        <div class="phase-header">
+          <span class="phase-num">04</span>
+          <span class="phase-name">Key Findings & Patterns</span>
+          <span class="phase-badge">Insight</span>
+          <span class="phase-chevron">▾</span>
+        </div>
+        <div class="phase-body">
+          <div class="phase-content">
+            <p>The analysis uncovered several non-obvious patterns that have direct strategy implications:</p>
+            <ul class="insight-list">
+              <li><strong>Contrarian accumulation:</strong> Traders deploy the most capital ($7,816 avg) during Fear — systematically buying when others panic</li>
+              <li><strong>Distribution in euphoria:</strong> BUY ratio drops to 44.9% during Extreme Greed — traders sell into strength</li>
+              <li><strong>Sentiment bifurcation:</strong> Fear = highest win rate (87.3%); Extreme Greed = highest dollar PnL ($130) — two distinct profit mechanisms</li>
+              <li><strong>Seasonal overlay:</strong> Q1 months show elevated Fear-regime PnL; September/October see weakest Greed-regime returns</li>
+              <li><strong>@107 token edge:</strong> A single non-mainstream asset generated $2.78M — 27% of top-5 coin PnL</li>
+              <li><strong>Fee efficiency:</strong> Gross vs net PnL gap &lt;2% — traders are operating at institutional efficiency</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 5 -->
+      <div class="phase" onclick="togglePhase(this)">
+        <div class="phase-header">
+          <span class="phase-num">05</span>
+          <span class="phase-name">PDF Report — 9 Pages</span>
+          <span class="phase-badge">Delivery</span>
+          <span class="phase-chevron">▾</span>
+        </div>
+        <div class="phase-body">
+          <div class="phase-content">
+            <p>Compiled everything into a professional 9-page dark-themed PDF using ReportLab — programmatically generated, not a template. Includes custom cover page with stat boxes, running header/footer, data tables, all four visualisation figures, and a strategic recommendations section.</p>
+            <ul class="insight-list">
+              <li><strong>Cover page:</strong> Hand-drawn canvas with stat boxes, title hierarchy, and accent bars</li>
+              <li><strong>Section 1:</strong> Dataset overview, merge methodology, sentiment distribution table</li>
+              <li><strong>Section 2:</strong> 8-point executive summary with specific data citations</li>
+              <li><strong>Sections 3–6:</strong> All 4 figures embedded with narrative analysis</li>
+              <li><strong>Section 7:</strong> 6 actionable strategic recommendations with data backing</li>
+            </ul>
+            <div style="margin-top:20px;">
+              <a href="sentiment_analysis_report_v2.pdf" target="_blank" class="btn btn-primary" style="cursor:pointer; display:inline-flex;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                Open Full Report PDF
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Deliverables -->
+    <div class="deliverables">
+      <div class="deliverable">
+        <span class="del-icon">📊</span>
+        <div class="del-title">4 Analysis Figures</div>
+        <div class="del-desc">22 individual chart panels covering dashboard overview, time series, segmentation, and advanced patterns</div>
+      </div>
+      <div class="deliverable">
+        <span class="del-icon">📄</span>
+        <div class="del-title">9-Page PDF Report</div>
+        <div class="del-desc">Programmatically generated dark-themed report with cover, narrative analysis, tables, and recommendations</div>
+      </div>
+      <div class="deliverable">
+        <span class="del-icon">🔬</span>
+        <div class="del-title">8 Key Findings</div>
+        <div class="del-desc">Actionable insights backed by specific data points — no vague observations, every claim cited</div>
+      </div>
+    </div>
+
+    <!-- PDF CTA -->
+    <div class="pdf-cta">
+      <div class="pdf-cta-text">
+        <h3>Read the full analysis →</h3>
+        <p>9-page PDF report with all visualisations, data tables, findings, and strategic recommendations</p>
+      </div>
+      <a href="sentiment_analysis_report_v2.pdf" target="_blank" class="btn btn-primary" style="white-space:nowrap; cursor:pointer;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download PDF Report
+      </a>
+    </div>
+
+  </section>
+
+  <!-- ── FOOTER ──────────────────────────────────────────────────────── -->
+  <footer class="reveal">
+    <div class="footer-left">Portfolio<span>.</span></div>
+    <div class="footer-right">Data Science · Web3 Trading Analytics · 2024</div>
+  </footer>
+
+</div><!-- /container -->
+
+<script>
+  // ── Cursor ────────────────────────────────────────────────────────────────
+  const cursor     = document.getElementById('cursor');
+  const cursorRing = document.getElementById('cursorRing');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+  document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+  function animCursor() {
+    cursor.style.transform     = `translate(${mx-5}px, ${my-5}px)`;
+    rx += (mx - rx) * 0.12;
+    ry += (my - ry) * 0.12;
+    cursorRing.style.transform = `translate(${rx-18}px, ${ry-18}px)`;
+    requestAnimationFrame(animCursor);
+  }
+  animCursor();
+
+  const reveals = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+  }, { threshold: 0.1 });
+  reveals.forEach(el => io.observe(el));
+
+  
+  function togglePhase(el) {
+    const isOpen = el.classList.contains('open');
+    document.querySelectorAll('.phase.open').forEach(p => p.classList.remove('open'));
+    if (!isOpen) el.classList.add('open');
+  }
+
+  // ── Stat counter animation ────────────────────────────────────────────────
+  function animateCount(el, target, prefix='', suffix='', decimals=0) {
+    const duration = 1600;
+    const start    = performance.now();
+    const update   = now => {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      const val  = (target * ease).toFixed(decimals);
+      el.textContent = prefix + (decimals ? val : Math.floor(val).toLocaleString()) + suffix;
+      if (t < 1) requestAnimationFrame(update);
+    };
+    requestAnimationFrame(update);
+  }
+
+  const statIO = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      const vals = e.target.querySelectorAll('.stat-val');
+      const targets = [211224, 10.3, 2644, 246];
+      const prefixes = ['','$','',''];
+      const suffixes = ['+','M+','',''];
+      const decimals = [0,1,0,0];
+      vals.forEach((v, i) => animateCount(v, targets[i], prefixes[i], suffixes[i], decimals[i]));
+      statIO.disconnect();
+    });
+  }, { threshold: 0.5 });
+  statIO.observe(document.querySelector('.stats-bar'));
+</script>
+</body>
+</html>
